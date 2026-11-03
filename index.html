@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mohammad Amini</title>
+  <meta name="description" content="Mohammad Amini, Ph.D. in Industrial and Systems Engineering (University of Florida). Mixed-integer optimization, cutting planes and distributed optimization.">
+  <meta property="og:title" content="Mohammad Amini">
+  <meta property="og:description" content="Ph.D., Industrial and Systems Engineering, University of Florida. Mixed-integer and distributed optimization.">
+  <meta property="og:image" content="https://mhmdamini.github.io/profile.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <img src="profile.jpg" alt="Mohammad Amini" class="photo" width="160" height="160">
+      <h1>Mohammad Amini</h1>
+      <p class="role">Ph.D., Industrial and Systems Engineering<br>University of Florida</p>
+      <ul class="links">
+        <li><a href="mailto:m.amini@ufl.edu">m.amini@ufl.edu</a></li>
+        <li><a href="https://github.com/mhmdamini">GitHub</a></li>
+        <li><a href="https://linkedin.com/in/mohamini">LinkedIn</a></li>
+      </ul>
+    </aside>
+
+    <main>
+      <section id="about">
+        <h2>About</h2>
+        <p>I received my Ph.D. in Industrial and Systems Engineering from the
+        University of Florida, where my dissertation focused on networked systems
+        and multimodal machine learning for decentralized datasets, advised by
+        Dr. Mostafa Reisi and Dr. Aleksandr Kazachkov.</p>
+        <p>My work sits between mathematical optimization and machine learning:
+        cutting planes and disjunctive cuts for mixed-integer programs, and
+        distributed optimization methods for data that cannot be pooled in one
+        place. I have also worked on language models that generate assessment
+        items for K–12 education. I write research code meant to be run by
+        others, with tests and scripts that reproduce every result.</p>
+      </section>
+
+      <section id="interests">
+        <h2>Research interests</h2>
+        <ul class="tags">
+          <li>Mixed-integer programming</li>
+          <li>Cutting planes</li>
+          <li>Global optimization</li>
+          <li>Distributed optimization</li>
+          <li>Decentralized data</li>
+          <li>High-dimensional data analysis</li>
+          <li>Language models for education</li>
+        </ul>
+      </section>
+
+      <section id="projects">
+        <h2>Projects</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>SeEFed</h3>
+            <p>Self-expressive federated learning for networked systems, with data
+            generation, federated optimization routines and a benchmarking suite
+            against standard baselines.</p>
+            <p class="meta">Python · Distributed optimization</p>
+          </article>
+          <article class="card">
+            <h3>FCGLM</h3>
+            <p>Federated cooperative generalized linear models for distributed
+            multimodal data analysis.</p>
+            <p class="meta">Python · Distributed optimization</p>
+          </article>
+          <article class="card">
+            <h3><a href="https://github.com/mhmdamini/federated-glm">federated-glm</a></h3>
+            <p>A Python package for distributed fitting of generalized linear models
+            across clients: Gaussian, binomial and Poisson families, elastic-net
+            regularization and convergence diagnostics.</p>
+            <p class="meta">Python · <a href="https://pypi.org/project/federated-glm/">PyPI</a></p>
+          </article>
+          <article class="card">
+            <h3>FL for agriculture</h3>
+            <p>Centralized, local, federated and personalized learning compared for
+            tomato disease classification from spectral data, under FedAvg, FedProx,
+            FedAdam and FedOpt.</p>
+            <p class="meta">Python · PyTorch · Flower</p>
+          </article>
+          <article class="card">
+            <h3><a href="https://github.com/GrpMABA/NLP">Morphological MCQ generation</a></h3>
+            <p>Language-model item generation for K–12 education: Gemma 2B fine-tuned
+            with LoRA versus GPT-3.5 prompting on 13 question types, scored with
+            automatic metrics and expert ratings.</p>
+            <p class="meta">Python · Gemma · GPT</p>
+          </article>
+        </div>
+        <p class="note">More of my optimization code will be released on
+        <a href="https://github.com/mhmdamini">GitHub</a> as the papers come out.</p>
+      </section>
+
+      <section id="education">
+        <h2>Education</h2>
+        <ol class="timeline">
+          <li>
+            <h3>Ph.D., Industrial and Systems Engineering</h3>
+            <p class="meta">University of Florida · Minor in Computer Science</p>
+            <p>Networked systems and multimodal machine learning for decentralized
+            datasets. Began doctoral studies at the University of Texas at Austin,
+            working on game theory for sustainable operations.</p>
+          </li>
+          <li>
+            <h3>M.Sc., Industrial and Systems Engineering</h3>
+            <p class="meta">Sharif University of Technology</p>
+            <p>Mathematical programming for graceful and alpha valuations of quadratic
+            graphs, advised by Dr. Kourosh Eshghi.</p>
+          </li>
+          <li>
+            <h3>B.Sc., Mathematics and Computer Science</h3>
+            <p class="meta">Amirkabir University of Technology</p>
+          </li>
+        </ol>
+      </section>
+
+      <footer>&copy; <span id="year">2026</span> Mohammad Amini</footer>
+    </main>
+  </div>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
