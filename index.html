@@ -27,11 +27,6 @@
     </aside>
 
     <main>
-      <figure class="hero">
-        <canvas id="cut-canvas" aria-label="Animation: cutting planes remove the fractional LP optimum of a polytope while keeping every integer point"></canvas>
-        <figcaption><span id="cut-label">Cutting planes</span><span class="hint">Drag to rotate</span></figcaption>
-      </figure>
-
       <section id="about">
         <h2>About</h2>
         <p>I received my Ph.D. in Industrial and Systems Engineering from the
@@ -63,8 +58,7 @@
           <article class="card">
             <h3><a href="https://github.com/mhmdamini/SVPC_Lab">SVPC Lab</a></h3>
             <p>A Julia library for disjunctive cuts, branch and bound and branch and
-            cut, with a web interface that draws the feasible region, every cut and
-            the search tree for 2- and 3-variable problems.</p>
+            cut, with a web interface.</p>
             <p class="meta">Julia · JuMP · HiGHS</p>
           </article>
           <article class="card">
@@ -129,10 +123,38 @@
         </ol>
       </section>
 
+      <section id="motion">
+        <h2>Research in motion</h2>
+        <figure class="viz viz-wide">
+          <canvas id="cut-canvas" aria-label="Animation: cutting planes remove the fractional LP optimum of a polytope while keeping every integer point"></canvas>
+          <figcaption>
+            <span class="viz-title">Cutting planes <span class="hint">· drag to rotate</span></span>
+            <span id="cut-label" class="viz-status">Cuts remove the fractional LP optimum</span>
+          </figcaption>
+        </figure>
+        <div class="viz-grid">
+          <figure class="viz">
+            <canvas id="dist-canvas" aria-label="Animation: six networked agents, each with its own objective, exchange messages with neighbours until they agree on the minimizer of the sum"></canvas>
+            <figcaption>
+              <span class="viz-title">Distributed optimization</span>
+              <span id="dist-label" class="viz-status">Agents reach consensus on the global optimum</span>
+            </figcaption>
+          </figure>
+          <figure class="viz">
+            <canvas id="glob-canvas" aria-label="Animation: a Lipschitz lower bound is refined sample by sample until the global minimum of a multimodal function is certified"></canvas>
+            <figcaption>
+              <span class="viz-title">Global optimization</span>
+              <span id="glob-label" class="viz-status">Lower bounds certify the global minimum</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
       <footer>&copy; <span id="year">2026</span> Mohammad Amini</footer>
     </main>
   </div>
   <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
   <script src="cuts3d.js" defer></script>
+  <script src="anims2d.js" defer></script>
 </body>
 </html>
