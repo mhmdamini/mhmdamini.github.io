@@ -132,22 +132,20 @@
             <span id="cut-label" class="viz-status">Cuts remove the fractional LP optimum</span>
           </figcaption>
         </figure>
-        <div class="viz-grid">
-          <figure class="viz">
-            <canvas id="dist-canvas" aria-label="Animation: six networked agents, each with its own objective, exchange messages with neighbours until they agree on the minimizer of the sum"></canvas>
-            <figcaption>
-              <span class="viz-title">Distributed optimization</span>
-              <span id="dist-label" class="viz-status">Agents reach consensus on the global optimum</span>
-            </figcaption>
-          </figure>
-          <figure class="viz">
-            <canvas id="glob-canvas" aria-label="Animation: a Lipschitz lower bound is refined sample by sample until the global minimum of a multimodal function is certified"></canvas>
-            <figcaption>
-              <span class="viz-title">Global optimization</span>
-              <span id="glob-label" class="viz-status">Lower bounds certify the global minimum</span>
-            </figcaption>
-          </figure>
-        </div>
+        <figure class="viz">
+          <canvas id="admm-canvas" aria-label="Animation: four blocks each fit a curve to their own data, then ADMM rounds close the gaps at the seams until the pieces form one smooth model"></canvas>
+          <figcaption>
+            <span class="viz-title">Distributed optimization with ADMM</span>
+            <span id="admm-label" class="viz-status">Pieces solved locally, then stitched together</span>
+          </figcaption>
+        </figure>
+        <figure class="viz viz-wide">
+          <canvas id="bnb-canvas" aria-label="Animation: a landscape with many valleys is split into boxes by branch and bound; boxes that cannot contain the best point are pruned"></canvas>
+          <figcaption>
+            <span class="viz-title">Global optimization by branch and bound <span class="hint">· drag to rotate</span></span>
+            <span id="bnb-label" class="viz-status">Boxes that cannot hold the best point are discarded</span>
+          </figcaption>
+        </figure>
       </section>
 
       <footer>&copy; <span id="year">2026</span> Mohammad Amini</footer>
@@ -155,6 +153,6 @@
   </div>
   <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
   <script src="cuts3d.js" defer></script>
-  <script src="anims2d.js" defer></script>
+  <script src="anims.js" defer></script>
 </body>
 </html>
