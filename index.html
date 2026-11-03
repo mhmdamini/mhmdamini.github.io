@@ -27,6 +27,11 @@
     </aside>
 
     <main>
+      <figure class="hero">
+        <canvas id="cut-canvas" aria-label="Animation: cutting planes remove the fractional LP optimum of a polytope while keeping every integer point"></canvas>
+        <figcaption><span id="cut-label">Cutting planes</span><span class="hint">Drag to rotate</span></figcaption>
+      </figure>
+
       <section id="about">
         <h2>About</h2>
         <p>I received my Ph.D. in Industrial and Systems Engineering from the
@@ -55,6 +60,13 @@
       <section id="projects">
         <h2>Projects</h2>
         <div class="cards">
+          <article class="card">
+            <h3><a href="https://github.com/mhmdamini/SVPC_Lab">SVPC Lab</a></h3>
+            <p>V-polyhedral disjunctive cuts with monoidal strengthening, compared with
+            Gomory, intersection and GMI cuts, plus a web interface that draws the
+            feasible region and every cut for 2- and 3-variable problems.</p>
+            <p class="meta">Julia · JuMP · HiGHS</p>
+          </article>
           <article class="card">
             <h3>SeEFed</h3>
             <p>Self-expressive federated learning for networked systems, with data
@@ -121,5 +133,6 @@
     </main>
   </div>
   <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  <script src="cuts3d.js" defer></script>
 </body>
 </html>
