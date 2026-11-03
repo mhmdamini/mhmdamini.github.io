@@ -132,11 +132,11 @@
             <span id="cut-label" class="viz-status">Cuts remove the fractional LP optimum</span>
           </figcaption>
         </figure>
-        <figure class="viz">
-          <canvas id="admm-canvas" aria-label="Animation: four blocks each fit a curve to their own data, then ADMM rounds close the gaps at the seams until the pieces form one smooth model"></canvas>
+        <figure class="viz viz-wide">
+          <canvas id="dist-canvas" aria-label="Animation: four workers keep their own data and local objectives; each round they send gradients, not data, to a server, which takes a weighted gradient step on the combined loss surface"></canvas>
           <figcaption>
-            <span class="viz-title">Distributed optimization with ADMM</span>
-            <span id="admm-label" class="viz-status">Pieces solved locally, then stitched together</span>
+            <span class="viz-title">Distributed optimization <span class="hint">· drag to rotate</span></span>
+            <span id="dist-label" class="viz-status">Workers send gradients, not data; the server steps on the combined loss</span>
           </figcaption>
         </figure>
         <figure class="viz viz-wide">

@@ -1,5 +1,6 @@
-// Two animations: ADMM (pieces of a fit solved locally, then stitched
-// together) and spatial branch and bound on a 3-D landscape with many valleys.
+// Two 3-D animations: distributed gradient descent (workers send gradients,
+// never data, to a server) and spatial branch and bound on a landscape with
+// many valleys.
 (() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const dark = window.matchMedia("(prefers-color-scheme: dark)");
@@ -21,10 +22,10 @@
       surface: get("--surface", "#ffffff"),
       cut: get("--cut", "#d9822b"),
     };
-    // Block colors for the ADMM pieces, readable in both themes.
-    colors.blocks = dark.matches
-      ? ["#5cc8a0", "#7aa7f0", "#c58af0", "#e8c55a"]
-      : ["#0b6e4f", "#3b6fc4", "#9b4dca", "#b8860b"];
+    // One color per worker, readable in both themes.
+    colors.workers = dark.matches
+      ? ["#7aa7f0", "#c58af0", "#e8c55a", "#f783ac"]
+      : ["#3b6fc4", "#9b4dca", "#b8860b", "#d6336c"];
   }
 
   function rgba(hex, a) {
@@ -72,174 +73,310 @@
     if (el && el.textContent !== text) el.textContent = text;
   }
 
-  // Solve M x = b by Gaussian elimination with partial pivoting.
-  function solve(M, b) {
-    const n = b.length, A = M.map((row, i) => [...row, b[i]]);
-    for (let c = 0; c < n; c++) {
-      let p = c;
-      for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
-      [A[c], A[p]] = [A[p], A[c]];
-      for (let r = c + 1; r < n; r++) {
-        const f = A[r][c] / A[c][c];
-        for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k];
-      }
-    }
-    const x = Array(n).fill(0);
-    for (let r = n - 1; r >= 0; r--) {
-      let s = A[r][n];
-      for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k];
-      x[r] = s / A[r][r];
-    }
-    return x;
-  }
-
-  // ---------- ADMM: fit locally, stitch at the seams ----------
-  // Four blocks each own the data on a quarter of [0, 1] and fit a cubic.
-  // Consensus ADMM forces neighbouring cubics to agree in value and slope at
-  // each seam:  θ_b ← argmin ½‖A_b θ − y_b‖² + ρ/2 ‖C_b θ − z_b + u_b‖²,
-  //             z ← average of C θ + u at each seam,  u ← u + C θ − z.
-  function admm() {
-    const canvas = document.getElementById("admm-canvas");
+  // ---------- distributed gradient descent ----------
+  // Worker i keeps its data and the local objective
+  //   f_i(w) = ½ (w − a_i)' Q_i (w − a_i).
+  // Each round the server sends w to the workers, each worker sends back
+  // ∇f_i(w) (never its data), and the server steps
+  //   w ← w − η Σ p_i ∇f_i(w),  the gradient step on F = Σ p_i f_i.
+  function distributed() {
+    const canvas = document.getElementById("dist-canvas");
     if (!canvas) return;
-    const label = document.getElementById("admm-label");
-    const B = 4, HALF = 0.5 / B, RHO = 1.2, SLOPE_W = 0.12, MAX_ITERS = 60;
-    const LOCAL = 2.2, RATE = 3, HOLD = 2.8;
-    const phi = (t) => [1, t, t * t, t * t * t];
-    const dphi = (t) => [0, 1, 2 * t, 3 * t * t].map((v) => (v / HALF) * SLOPE_W);
-    const mid = (b) => (b + 0.5) / B;
-    let run = null;
+    const label = document.getElementById("dist-label");
+    const M = 4, G = 24, MAX_ROUNDS = 14, HOLD = 3;
+    const PHASES = [["send", 0.7], ["compute", 0.8], ["return", 0.9], ["update", 1.1]];
+    const FAST = 0.45; // rounds after the first two play faster
+    const ARROW = 2;
+    let run = null, yaw = -0.6, pitch = 0.6, dragYaw = 0, dragging = null;
+
+    const mul = (Q, v) => [Q[0][0] * v[0] + Q[0][1] * v[1], Q[1][0] * v[0] + Q[1][1] * v[1]];
 
     function newRun(t0) {
-      const ph = Math.random() * 6.28, fr = 1 + Math.random() * 0.6, amp2 = 0.2 + Math.random() * 0.3;
-      const truth = (x) => 0.8 * Math.sin(2 * Math.PI * fr * x + ph) + amp2 * Math.cos(7 * x + ph);
-      const blocks = [];
-      for (let b = 0; b < B; b++) {
-        const pts = [];
-        for (let i = 0; i < 11; i++) {
-          const x = b / B + ((i + 0.2 + Math.random() * 0.6) / 11) / B;
-          pts.push({ x, y: truth(x) + (Math.random() - 0.5) * 0.25 });
-        }
-        // Rows of C: left seam (value, slope) at t = −1, right seam at t = +1.
-        const C = [], seams = [];
-        if (b > 0) { C.push(phi(-1), dphi(-1)); seams.push([b - 1, 0], [b - 1, 1]); }
-        if (b < B - 1) { C.push(phi(1), dphi(1)); seams.push([b, 0], [b, 1]); }
-        const A = pts.map((p) => phi((p.x - mid(b)) / HALF));
-        const AtA = [0, 1, 2, 3].map((i) => [0, 1, 2, 3].map((j) => A.reduce((s, r) => s + r[i] * r[j], 0) + (i === j ? 1e-6 : 0)));
-        const Aty = [0, 1, 2, 3].map((i) => A.reduce((s, r, k) => s + r[i] * pts[k].y, 0));
-        blocks.push({ pts, C, seams, AtA, Aty, u: C.map(() => 0) });
+      const a = [], Q = [], n = [];
+      for (let i = 0; i < M; i++) {
+        const dir = [[-1, 1], [-1, -1], [1, 1], [1, -1]][i];
+        a.push([dir[0] * (0.35 + Math.random() * 0.4), dir[1] * (0.35 + Math.random() * 0.4)]);
+        const th = Math.random() * Math.PI, c = Math.cos(th), s = Math.sin(th);
+        const l1 = 0.6 + Math.random() * 1.2, l2 = 0.6 + Math.random() * 1.2;
+        Q.push([[c * c * l1 + s * s * l2, c * s * (l1 - l2)], [c * s * (l1 - l2), s * s * l1 + c * c * l2]]);
+        n.push(3 + Math.floor(Math.random() * 7));
+      }
+      const total = n.reduce((x, y) => x + y, 0);
+      const p = n.map((v) => v / total);
+      const grad = (i, w) => mul(Q[i], [w[0] - a[i][0], w[1] - a[i][1]]);
+      const F = (w) => Q.reduce((acc, q, i) => {
+        const d = [w[0] - a[i][0], w[1] - a[i][1]], qd = mul(q, d);
+        return acc + p[i] * 0.5 * (d[0] * qd[0] + d[1] * qd[1]);
+      }, 0);
+
+      // H = Σ p_i Q_i; the minimizer solves H w = Σ p_i Q_i a_i.
+      const H = Q.reduce((S, q, i) => [[S[0][0] + p[i] * q[0][0], S[0][1] + p[i] * q[0][1]], [S[1][0] + p[i] * q[1][0], S[1][1] + p[i] * q[1][1]]], [[0, 0], [0, 0]]);
+      const rhs = Q.reduce((v, q, i) => { const t = mul(q, a[i]); return [v[0] + p[i] * t[0], v[1] + p[i] * t[1]]; }, [0, 0]);
+      const det = H[0][0] * H[1][1] - H[0][1] * H[1][0];
+      const wstar = [(H[1][1] * rhs[0] - H[0][1] * rhs[1]) / det, (H[0][0] * rhs[1] - H[1][0] * rhs[0]) / det];
+      const lmax = (H[0][0] + H[1][1]) / 2 + Math.sqrt((H[0][0] - H[1][1]) ** 2 / 4 + H[0][1] ** 2);
+      const eta = 0.42 / lmax;
+
+      let fmin = F(wstar), fmax = -Infinity;
+      const heights = [];
+      for (let i = 0; i <= G; i++) {
+        heights.push([]);
+        for (let j = 0; j <= G; j++) { const v = F([(i / G) * 2 - 1, (j / G) * 2 - 1]); heights[i].push(v); fmax = Math.max(fmax, v); }
+      }
+      const norm = (v) => (v - fmin) / (fmax - fmin);
+
+      // Start in the corner farthest from the optimum.
+      const W = [[wstar[0] > 0 ? -0.85 : 0.85, wstar[1] > 0 ? -0.85 : 0.85]], steps = [];
+      for (let r = 0; r < MAX_ROUNDS; r++) {
+        const w = W[r];
+        const local = a.map((_, i) => { const g = grad(i, w); return [-eta * g[0], -eta * g[1]]; });
+        const step = local.reduce((s, v, i) => [s[0] + p[i] * v[0], s[1] + p[i] * v[1]], [0, 0]);
+        steps.push({ local, step });
+        W.push([w[0] + step[0], w[1] + step[1]]);
+        if (Math.hypot(W[r + 1][0] - wstar[0], W[r + 1][1] - wstar[1]) < 0.02) break;
       }
 
-      const thetas = [], gaps = [];
-      let theta = blocks.map((bl) => solve(bl.AtA, bl.Aty)); // purely local fits
-      const z = Array.from({ length: B - 1 }, () => [0, 0]);
-      const Ct = (bl, th) => bl.C.map((row) => row.reduce((s, v, i) => s + v * th[i], 0));
-      const seamGap = (th) => Math.max(...z.map((_, s) => Math.abs(phi(1).reduce((a, v, i) => a + v * th[s][i], 0) - phi(-1).reduce((a, v, i) => a + v * th[s + 1][i], 0))));
-      const updateZ = () => {
-        const acc = z.map(() => [0, 0]);
-        blocks.forEach((bl, b) => Ct(bl, theta[b]).forEach((v, r) => { const [s, k] = bl.seams[r]; acc[s][k] += (v + bl.u[r]) / 2; }));
-        acc.forEach((v, s) => { z[s] = v; });
-      };
-      updateZ();
-      thetas.push(theta); gaps.push(seamGap(theta));
-      for (let k = 0; k < MAX_ITERS; k++) {
-        theta = blocks.map((bl) => {
-          const M = bl.AtA.map((row, i) => row.map((v, j) => v + RHO * bl.C.reduce((s, r) => s + r[i] * r[j], 0)));
-          const rhs = bl.Aty.map((v, i) => v + RHO * bl.C.reduce((s, r, q) => s + r[i] * (z[bl.seams[q][0]][bl.seams[q][1]] - bl.u[q]), 0));
-          return solve(M, rhs);
-        });
-        updateZ();
-        blocks.forEach((bl, b) => Ct(bl, theta[b]).forEach((v, r) => { const [s, q] = bl.seams[r]; bl.u[r] += v - z[s][q]; }));
-        thetas.push(theta); gaps.push(seamGap(theta));
-        if (gaps[gaps.length - 1] < 0.004) break;
-      }
-
-      const ys = blocks.flatMap((bl) => bl.pts.map((p) => p.y));
-      const iters = thetas.length - 1;
-      run = { blocks, thetas, gaps, iters, t0, ylo: Math.min(...ys) - 0.35, yhi: Math.max(...ys) + 0.35,
-        total: LOCAL + iters / RATE + HOLD };
+      const segs = [];
+      let t = 0;
+      steps.forEach((_, r) => PHASES.forEach(([ph, len]) => {
+        const d = len * (r < 2 ? 1 : FAST);
+        segs.push({ r, ph, t0: t, len: d });
+        t += d;
+      }));
+      run = { a, p, n, F, wstar, W, steps, heights, norm, segs, t0, total: t + HOLD };
     }
 
-    animate(canvas, (ctx, w, h, t) => {
+    let w = 0, h = 0, s = 1, side = 60;
+    function project(q) {
+      const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+      const x1 = q[0] * cy - q[1] * sy, y1 = q[0] * sy + q[1] * cy, z1 = q[2];
+      const depth = y1 * cp - z1 * sp, up = y1 * sp + z1 * cp;
+      const k = 6 / (6 + depth);
+      return { x: w / 2 + x1 * s * k, y: h * 0.56 - up * s * k, depth };
+    }
+    const lift = (v) => -0.5 + 0.75 * run.norm(v);
+    const onSurface = (pt, dz = 0) => [pt[0], pt[1], lift(run.F(pt)) + dz];
+
+    function arrow(ctx, from, to, color, width, alpha) {
+      const A = project(from), B = project(to);
+      const len = Math.hypot(B.x - A.x, B.y - A.y);
+      if (len < 2 || alpha <= 0) return;
+      const ux = (B.x - A.x) / len, uy = (B.y - A.y) / len, head = Math.min(9, len * 0.45);
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(A.x, A.y);
+      ctx.lineTo(B.x - ux * head * 0.6, B.y - uy * head * 0.6);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = "round";
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(B.x, B.y);
+      ctx.lineTo(B.x - ux * head - uy * head * 0.5, B.y - uy * head + ux * head * 0.5);
+      ctx.lineTo(B.x - ux * head + uy * head * 0.5, B.y - uy * head - ux * head * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    const redraw = animate(canvas, (ctx, cw, ch, t) => {
+      w = cw; h = ch; side = w < 500 ? 34 : 64; s = Math.min((w - 2 * side) / 3.0, h / 2.5);
       const now = t === null ? 0 : t;
       if (!run || now - run.t0 > run.total) newRun(now);
-      const local = t === null ? LOCAL + 3 / RATE : now - run.t0;
-      const kf = Math.max(0, Math.min(run.iters, (local - LOCAL) * RATE));
-      const k = Math.floor(kf), fr = k >= run.iters ? 0 : ease(kf - k);
-      const th = run.thetas[k].map((a, b) => a.map((v, i) => v + (run.thetas[Math.min(k + 1, run.iters)][b][i] - v) * fr));
+      yaw = -0.6 + dragYaw + (t === null ? 0 : now * 0.12);
+      const local = t === null ? run.segs[5].t0 + 0.1 : now - run.t0;
+      const seg = run.segs.find((g) => local >= g.t0 && local < g.t0 + g.len);
+      const u = seg ? Math.min(1, (local - seg.t0) / seg.len) : 1;
+      const r = seg ? seg.r : run.steps.length;
+      const done = !seg;
 
-      const L = 14, R = 14, T = 26, Bm = 12;
-      const X = (x) => L + x * (w - L - R);
-      const Y = (y) => T + ((run.yhi - y) / (run.yhi - run.ylo)) * (h - T - Bm);
-      const val = (b, x) => phi((x - mid(b)) / HALF).reduce((s, v, i) => s + v * th[b][i], 0);
+      // Model position: it moves during the second half of the update phase.
+      let wm = run.W[r];
+      if (seg && seg.ph === "update" && u > 0.45) {
+        const v = ease((u - 0.45) / 0.55), A = run.W[r], B = run.W[r + 1];
+        wm = [A[0] + (B[0] - A[0]) * v, A[1] + (B[1] - A[1]) * v];
+      }
 
-      // Block strips with labels.
-      for (let b = 0; b < B; b++) {
-        if (b % 2) {
-          ctx.fillStyle = rgba(colors.muted, 0.05);
-          ctx.fillRect(X(b / B), 0, X((b + 1) / B) - X(b / B), h);
+      // Surface and markers, depth-sorted.
+      const accent = hexToRgb(colors.accent), surf = hexToRgb(colors.surface);
+      const high = mixRgb(accent, surf, 0.8);
+      const light = [-0.35, -0.55, 0.76];
+      const items = [];
+      const P3 = (i, j) => [(i / G) * 2 - 1, (j / G) * 2 - 1, lift(run.heights[i][j])];
+      for (let i = 0; i < G; i++)
+        for (let j = 0; j < G; j++) {
+          const q = [P3(i, j), P3(i + 1, j), P3(i + 1, j + 1), P3(i, j + 1)];
+          const d1 = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]], d2 = [q[3][0] - q[1][0], q[3][1] - q[1][1], q[3][2] - q[1][2]];
+          const nv = [d1[1] * d2[2] - d1[2] * d2[1], d1[2] * d2[0] - d1[0] * d2[2], d1[0] * d2[1] - d1[1] * d2[0]];
+          const shade = 0.65 + 0.35 * Math.max(0, (nv[0] * light[0] + nv[1] * light[1] + nv[2] * light[2]) / Math.hypot(...nv));
+          const hv = (run.norm(run.heights[i][j]) + run.norm(run.heights[i + 1][j + 1])) / 2;
+          const pts = q.map(project);
+          items.push({ depth: (pts[0].depth + pts[1].depth + pts[2].depth + pts[3].depth) / 4, pts, col: mixRgb(accent, high, Math.min(1, 0.15 + hv * 1.1)), shade });
         }
-        ctx.fillStyle = colors.blocks[b];
-        ctx.font = "600 11px Inter, system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(`Block ${b + 1}`, X(mid(b)), 16);
-      }
-      // Seams.
-      ctx.setLineDash([3, 4]);
-      ctx.strokeStyle = rgba(colors.muted, 0.4);
-      ctx.lineWidth = 1;
-      for (let s = 1; s < B; s++) {
-        ctx.beginPath();
-        ctx.moveTo(X(s / B), T - 4);
-        ctx.lineTo(X(s / B), h - Bm);
-        ctx.stroke();
-      }
-      ctx.setLineDash([]);
+      run.a.forEach((ai, i) => {
+        const q = project(onSurface(ai, 0.015));
+        items.push({ depth: q.depth - 0.02, mark: "ring", q, color: colors.workers[i] });
+      });
+      const qs = project(onSurface(run.wstar, 0.015));
+      items.push({ depth: qs.depth - 0.02, mark: "star", q: qs });
+      items.sort((x, y) => y.depth - x.depth);
 
-      // Data.
-      run.blocks.forEach((bl, b) => bl.pts.forEach((p) => {
-        ctx.beginPath();
-        ctx.arc(X(p.x), Y(p.y), 2.6, 0, Math.PI * 2);
-        ctx.fillStyle = rgba(colors.blocks[b], 0.55);
-        ctx.fill();
-      }));
-
-      // Each block's local model.
-      for (let b = 0; b < B; b++) {
-        ctx.beginPath();
-        for (let i = 0; i <= 40; i++) {
-          const x = b / B + (i / 40) / B;
-          i ? ctx.lineTo(X(x), Y(val(b, x))) : ctx.moveTo(X(x), Y(val(b, x)));
-        }
-        ctx.strokeStyle = colors.blocks[b];
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = "round";
-        ctx.stroke();
-      }
-
-      // Gaps at the seams, which ADMM closes.
-      for (let s = 1; s < B; s++) {
-        const x = s / B, y1 = val(s - 1, x), y2 = val(s, x);
-        if (Math.abs(Y(y1) - Y(y2)) > 1.5) {
+      for (const it of items) {
+        if (it.mark === "ring") {
           ctx.beginPath();
-          ctx.moveTo(X(x), Y(y1));
-          ctx.lineTo(X(x), Y(y2));
-          ctx.strokeStyle = colors.cut;
-          ctx.lineWidth = 3;
+          ctx.arc(it.q.x, it.q.y, 5, 0, Math.PI * 2);
+          ctx.strokeStyle = it.color;
+          ctx.lineWidth = 2.2;
           ctx.stroke();
-        }
-        for (const y of [y1, y2]) {
+        } else if (it.mark === "star") {
           ctx.beginPath();
-          ctx.arc(X(x), Y(y), 3.5, 0, Math.PI * 2);
+          for (let k = 0; k < 10; k++) {
+            const rr = k % 2 ? 3 : 7.5, ang = -Math.PI / 2 + (k * Math.PI) / 5;
+            const x = it.q.x + rr * Math.cos(ang), y = it.q.y + rr * Math.sin(ang);
+            k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+          }
+          ctx.closePath();
           ctx.fillStyle = colors.cut;
           ctx.fill();
+        } else {
+          const p = it.pts;
+          ctx.beginPath();
+          ctx.moveTo(p[0].x, p[0].y);
+          for (let k = 1; k < 4; k++) ctx.lineTo(p[k].x, p[k].y);
+          ctx.closePath();
+          ctx.fillStyle = css(it.col, it.shade);
+          ctx.fill();
+          ctx.strokeStyle = css(it.col, it.shade * 0.92);
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
         }
       }
 
-      const gap = run.gaps[k] + (run.gaps[Math.min(k + 1, run.iters)] - run.gaps[k]) * fr;
-      if (local < LOCAL) setText(label, `Each block fits only its own data: the seams don't match (gap ${run.gaps[0].toFixed(2)})`);
-      else if (k < run.iters) setText(label, `ADMM round ${k + 1} · largest gap at a seam ${gap.toFixed(3)}`);
-      else setText(label, `Stitched: one smooth model from ${B} local solves after ${run.iters} rounds`);
-    })();
+      // Path of the shared model.
+      ctx.beginPath();
+      run.W.slice(0, r + 1).concat([wm]).forEach((pt, k) => {
+        const q = project(onSurface(pt, 0.02));
+        k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+      });
+      ctx.strokeStyle = rgba(colors.text, 0.55);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Communication links, workers with their data, and the server.
+      // Workers sit on the left and right, the server at the top.
+      const S = { x: w / 2, y: 22 };
+      const workerAt = [[side, 0.3], [side, 0.72], [w - side, 0.3], [w - side, 0.72]].map(([x, f]) => ({ x, y: h * f }));
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1;
+      workerAt.forEach((q) => {
+        ctx.beginPath();
+        ctx.moveTo(q.x, q.y);
+        ctx.lineTo(S.x, S.y);
+        ctx.strokeStyle = rgba(colors.muted, 0.35);
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      // Arrows at the model: each worker's step −η∇f_i, then the weighted sum.
+      const zm = lift(run.F(wm)) + 0.03;
+      const from = [wm[0], wm[1], zm];
+      if (seg && seg.ph !== "send") {
+        const st = run.steps[r];
+        const grow = seg.ph === "compute" ? ease(u) : 1;
+        const fade = seg.ph === "update" ? Math.max(0, 1 - u / 0.4) : 1;
+        // Arrows are drawn ARROW times the actual step so directions read clearly.
+        st.local.forEach((v, i) => {
+          const len = Math.hypot(v[0], v[1]) * ARROW, cap = ARROW * Math.min(1, 0.85 / len) * grow;
+          arrow(ctx, from, [wm[0] + v[0] * cap, wm[1] + v[1] * cap, zm], colors.workers[i], 2.2, 0.95 * fade);
+        });
+        if (seg.ph === "update") {
+          const A = run.W[r], B = run.W[r + 1], g = ARROW * ease(Math.min(1, u / 0.45));
+          arrow(ctx, [A[0], A[1], lift(run.F(A)) + 0.03], [A[0] + (B[0] - A[0]) * g, A[1] + (B[1] - A[1]) * g, lift(run.F(A)) + 0.03], colors.cut, 3, u > 0.9 ? (1 - u) * 10 : 1);
+        }
+      }
+
+      // The model point.
+      const qm = project(from);
+      ctx.beginPath();
+      ctx.arc(qm.x, qm.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = colors.text;
+      ctx.fill();
+      ctx.strokeStyle = colors.surface;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Messages: the model goes out, gradients come back. Data never moves.
+      if (seg && (seg.ph === "send" || seg.ph === "return")) {
+        const v = ease(u);
+        workerAt.forEach((q, i) => {
+          const [x0, y0, x1, y1] = seg.ph === "send" ? [S.x, S.y, q.x, q.y] : [q.x, q.y, S.x, S.y];
+          ctx.beginPath();
+          ctx.arc(x0 + (x1 - x0) * v, y0 + (y1 - y0) * v, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = seg.ph === "send" ? colors.text : colors.workers[i];
+          ctx.fill();
+          ctx.strokeStyle = colors.surface;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
+      }
+
+      ctx.font = "600 11px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      workerAt.forEach((q, i) => {
+        // The worker's data: one square per sample, staying here.
+        const cols = 3;
+        for (let k = 0; k < run.n[i]; k++) {
+          ctx.fillStyle = rgba(colors.workers[i], 0.55);
+          const dx = q.x < w / 2 ? 14 : -14 - cols * 6;
+          ctx.fillRect(q.x + dx + (k % cols) * 6, q.y - 9 + Math.floor(k / cols) * 6, 4.5, 4.5);
+        }
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 9, 0, Math.PI * 2);
+        ctx.fillStyle = colors.workers[i];
+        ctx.fill();
+        ctx.fillStyle = colors.workers[i];
+        ctx.fillText(`Worker ${i + 1}`, q.x, q.y + 23);
+        ctx.font = "400 10px Inter, system-ui, sans-serif";
+        ctx.fillStyle = colors.muted;
+        ctx.fillText(`p = ${run.p[i].toFixed(2)}`, q.x, q.y + 36);
+        ctx.font = "600 11px Inter, system-ui, sans-serif";
+      });
+      ctx.beginPath();
+      ctx.roundRect(S.x - 30, S.y - 12, 60, 24, 6);
+      ctx.fillStyle = colors.surface;
+      ctx.fill();
+      ctx.strokeStyle = colors.text;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.fillText("Server", S.x, S.y + 4);
+
+      const fval = run.F(wm).toFixed(3);
+      if (done) setText(label, `Converged to the minimizer of F = Σ pᵢ fᵢ in ${run.steps.length} rounds; no data left the workers`);
+      else if (r >= 2) setText(label, `Round ${r + 1} · F(w) = ${fval} · only gradients travel, the data stays with the workers`);
+      else setText(label, `Round ${r + 1} · ` + {
+        send: "the server sends the current model w to every worker",
+        compute: "each worker computes its gradient ∇fᵢ(w) on its own data",
+        return: "workers send back gradients only; their data never leaves",
+        update: "the server steps along the weighted sum: w ← w − η Σ pᵢ ∇fᵢ(w)",
+      }[seg.ph]);
+    });
+
+    canvas.addEventListener("pointerdown", (e) => {
+      dragging = { x: e.clientX, y: e.clientY, yaw: dragYaw, pitch };
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      dragYaw = dragging.yaw + (e.clientX - dragging.x) * 0.01;
+      pitch = Math.max(0.2, Math.min(1.3, dragging.pitch + (e.clientY - dragging.y) * 0.01));
+      if (reduced) redraw();
+    });
+    const endDrag = () => { dragging = null; };
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+    redraw();
   }
 
   // ---------- spatial branch and bound on a 3-D landscape ----------
@@ -433,6 +570,6 @@
   }
 
   readColors();
-  admm();
+  distributed();
   bnb();
 })();

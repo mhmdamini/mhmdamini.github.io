@@ -159,8 +159,8 @@ footer { color: var(--muted); font-size: 0.85rem; padding-top: 8px; }
   height: 260px;
 }
 .viz-wide canvas { height: 340px; }
-#cut-canvas, #bnb-canvas { cursor: grab; touch-action: pan-y; }
-#cut-canvas:active, #bnb-canvas:active { cursor: grabbing; }
+#cut-canvas, #dist-canvas, #bnb-canvas { cursor: grab; touch-action: pan-y; }
+#cut-canvas:active, #dist-canvas:active, #bnb-canvas:active { cursor: grabbing; }
 .viz figcaption {
   display: flex;
   flex-direction: column;
