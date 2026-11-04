@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <div class="layout">
@@ -140,6 +140,13 @@
           </figcaption>
         </figure>
         <figure class="viz viz-wide">
+          <canvas id="seefed-canvas" aria-label="Animation: a drone acting as a mobile aggregator visits clients, caches their models within its radius, learns which clients are similar, and picks its next stop by Thompson sampling"></canvas>
+          <figcaption>
+            <span class="viz-title">Self-expressive federated learning on a network <span class="hint">· drag to rotate</span></span>
+            <span id="seefed-label" class="viz-status">A drone learns which clients are similar without seeing their data</span>
+          </figcaption>
+        </figure>
+        <figure class="viz viz-wide">
           <canvas id="bnb-canvas" aria-label="Animation: a landscape with many valleys is split into boxes by branch and bound; boxes that cannot contain the best point are pruned"></canvas>
           <figcaption>
             <span class="viz-title">Global optimization by branch and bound <span class="hint">· drag to rotate</span></span>
@@ -154,5 +161,6 @@
   <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
   <script src="cuts3d.js" defer></script>
   <script src="anims.js" defer></script>
+  <script src="seefed.js" defer></script>
 </body>
 </html>

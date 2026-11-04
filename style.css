@@ -159,8 +159,9 @@ footer { color: var(--muted); font-size: 0.85rem; padding-top: 8px; }
   height: 260px;
 }
 .viz-wide canvas { height: 340px; }
-#cut-canvas, #dist-canvas, #bnb-canvas { cursor: grab; touch-action: pan-y; }
-#cut-canvas:active, #dist-canvas:active, #bnb-canvas:active { cursor: grabbing; }
+#cut-canvas, #dist-canvas, #seefed-canvas, #bnb-canvas { cursor: grab; touch-action: pan-y; }
+#cut-canvas:active, #dist-canvas:active, #seefed-canvas:active, #bnb-canvas:active { cursor: grabbing; }
+.viz #seefed-canvas { height: 420px; }
 .viz figcaption {
   display: flex;
   flex-direction: column;
@@ -176,5 +177,6 @@ footer { color: var(--muted); font-size: 0.85rem; padding-top: 8px; }
 @media (max-width: 760px) {
   .viz canvas { height: 230px; }
   .viz-wide canvas { height: 270px; }
+  .viz #seefed-canvas { height: 320px; }
   .hint { display: none; }
 }
