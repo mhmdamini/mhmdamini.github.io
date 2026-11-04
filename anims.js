@@ -265,7 +265,7 @@
 
       // Communication links, workers with their data, and the server.
       // Workers sit on the left and right, the server at the top.
-      const S = { x: w / 2, y: 22 };
+      const S = { x: w / 2, y: 30 };
       const workerAt = [[side, 0.3], [side, 0.72], [w - side, 0.3], [w - side, 0.72]].map(([x, f]) => ({ x, y: h * f }));
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1;
@@ -342,15 +342,39 @@
         ctx.fillText(`p = ${run.p[i].toFixed(2)}`, q.x, q.y + 36);
         ctx.font = "600 11px Inter, system-ui, sans-serif";
       });
-      ctx.beginPath();
-      ctx.roundRect(S.x - 30, S.y - 12, 60, 24, 6);
-      ctx.fillStyle = colors.surface;
-      ctx.fill();
-      ctx.strokeStyle = colors.text;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      // The server: a small rack of three units, each with status lights and vents.
+      const uw = 44, uh = 11, gap = 2.5, top = S.y - (3 * uh + 2 * gap) / 2;
+      for (let k = 0; k < 3; k++) {
+        const y = top + k * (uh + gap);
+        ctx.beginPath();
+        ctx.roundRect(S.x - uw / 2, y, uw, uh, 2.5);
+        ctx.fillStyle = colors.surface;
+        ctx.fill();
+        ctx.strokeStyle = colors.text;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        ctx.fillStyle = colors.accent;
+        ctx.beginPath();
+        ctx.arc(S.x - uw / 2 + 6, y + uh / 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = rgba(colors.muted, 0.8);
+        ctx.beginPath();
+        ctx.arc(S.x - uw / 2 + 12, y + uh / 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = rgba(colors.muted, 0.7);
+        ctx.lineWidth = 1;
+        for (let v = 0; v < 3; v++) {
+          const x = S.x + 6 + v * 4.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y + 2.5);
+          ctx.lineTo(x, y + uh - 2.5);
+          ctx.stroke();
+        }
+      }
       ctx.fillStyle = colors.text;
-      ctx.fillText("Server", S.x, S.y + 4);
+      ctx.textAlign = "left";
+      ctx.fillText("Server", S.x + uw / 2 + 8, S.y + 4);
+      ctx.textAlign = "center";
 
       const fval = run.F(wm).toFixed(3);
       if (done) setText(label, `Converged to the minimizer of F = Σ pᵢ fᵢ in ${run.steps.length} rounds; no data left the workers`);
