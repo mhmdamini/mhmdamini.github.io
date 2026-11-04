@@ -1,5 +1,5 @@
 // Two 3-D animations: distributed gradient descent (workers send gradients,
-// never data, to a server) and spatial branch and bound on a landscape with
+// never data, to an aggregator) and spatial branch and bound on a landscape with
 // many valleys.
 (() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -76,8 +76,8 @@
   // ---------- distributed gradient descent ----------
   // Worker i keeps its data and the local objective
   //   f_i(w) = ½ (w − a_i)' Q_i (w − a_i).
-  // Each round the server sends w to the workers, each worker sends back
-  // ∇f_i(w) (never its data), and the server steps
+  // Each round the aggregator sends w to the workers, each worker sends back
+  // ∇f_i(w) (never its data), and the aggregator steps
   //   w ← w − η Σ p_i ∇f_i(w),  the gradient step on F = Σ p_i f_i.
   function distributed() {
     const canvas = document.getElementById("dist-canvas");
@@ -263,8 +263,8 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Communication links, workers with their data, and the server.
-      // Workers sit on the left and right, the server at the top.
+      // Communication links, workers with their data, and the aggregator.
+      // Workers sit on the left and right, the aggregator at the top.
       const S = { x: w / 2, y: 30 };
       const workerAt = [[side, 0.3], [side, 0.72], [w - side, 0.3], [w - side, 0.72]].map(([x, f]) => ({ x, y: h * f }));
       ctx.setLineDash([3, 4]);
@@ -342,48 +342,45 @@
         ctx.fillText(`p = ${run.p[i].toFixed(2)}`, q.x, q.y + 36);
         ctx.font = "600 11px Inter, system-ui, sans-serif";
       });
-      // The server: a small rack of three units, each with status lights and vents.
-      const uw = 44, uh = 11, gap = 2.5, top = S.y - (3 * uh + 2 * gap) / 2;
-      for (let k = 0; k < 3; k++) {
-        const y = top + k * (uh + gap);
+      // The aggregator: a hub that combines the incoming gradients, Σ pᵢ ∇fᵢ.
+      const R = 15;
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
         ctx.beginPath();
-        ctx.roundRect(S.x - uw / 2, y, uw, uh, 2.5);
-        ctx.fillStyle = colors.surface;
-        ctx.fill();
-        ctx.strokeStyle = colors.text;
-        ctx.lineWidth = 1.4;
+        ctx.moveTo(S.x + Math.cos(a) * (R + 3), S.y + Math.sin(a) * (R + 3));
+        ctx.lineTo(S.x + Math.cos(a) * (R + 7), S.y + Math.sin(a) * (R + 7));
+        ctx.strokeStyle = rgba(colors.accent, 0.6);
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
         ctx.stroke();
-        ctx.fillStyle = colors.accent;
-        ctx.beginPath();
-        ctx.arc(S.x - uw / 2 + 6, y + uh / 2, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = rgba(colors.muted, 0.8);
-        ctx.beginPath();
-        ctx.arc(S.x - uw / 2 + 12, y + uh / 2, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = rgba(colors.muted, 0.7);
-        ctx.lineWidth = 1;
-        for (let v = 0; v < 3; v++) {
-          const x = S.x + 6 + v * 4.5;
-          ctx.beginPath();
-          ctx.moveTo(x, y + 2.5);
-          ctx.lineTo(x, y + uh - 2.5);
-          ctx.stroke();
-        }
       }
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      ctx.arc(S.x, S.y, R, 0, Math.PI * 2);
+      ctx.fillStyle = colors.surface;
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = colors.accent;
+      ctx.font = "600 17px 'Source Serif 4', Georgia, serif";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Σ", S.x, S.y + 1);
+      ctx.textBaseline = "alphabetic";
+      ctx.font = "600 11px Inter, system-ui, sans-serif";
       ctx.fillStyle = colors.text;
       ctx.textAlign = "left";
-      ctx.fillText("Server", S.x + uw / 2 + 8, S.y + 4);
+      ctx.fillText("Aggregator", S.x + R + 12, S.y + 4);
       ctx.textAlign = "center";
 
       const fval = run.F(wm).toFixed(3);
       if (done) setText(label, `Converged to the minimizer of F = Σ pᵢ fᵢ in ${run.steps.length} rounds; no data left the workers`);
       else if (r >= 2) setText(label, `Round ${r + 1} · F(w) = ${fval} · only gradients travel, the data stays with the workers`);
       else setText(label, `Round ${r + 1} · ` + {
-        send: "the server sends the current model w to every worker",
+        send: "the aggregator sends the current model w to every worker",
         compute: "each worker computes its gradient ∇fᵢ(w) on its own data",
         return: "workers send back gradients only; their data never leaves",
-        update: "the server steps along the weighted sum: w ← w − η Σ pᵢ ∇fᵢ(w)",
+        update: "the aggregator steps along the weighted sum: w ← w − η Σ pᵢ ∇fᵢ(w)",
       }[seg.ph]);
     });
 

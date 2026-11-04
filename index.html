@@ -48,7 +48,7 @@
           <li>Distributed optimization</li>
           <li>Decentralized data</li>
           <li>High-dimensional data analysis</li>
-          <li>Language models</li>
+          <li>Large language models</li>
         </ul>
       </section>
 
@@ -133,10 +133,10 @@
           </figcaption>
         </figure>
         <figure class="viz viz-wide">
-          <canvas id="dist-canvas" aria-label="Animation: four workers keep their own data and local objectives; each round they send gradients, not data, to a server, which takes a weighted gradient step on the combined loss surface"></canvas>
+          <canvas id="dist-canvas" aria-label="Animation: four workers keep their own data and local objectives; each round they send gradients, not data, to an aggregator, which takes a weighted gradient step on the combined loss surface"></canvas>
           <figcaption>
             <span class="viz-title">Distributed optimization <span class="hint">· drag to rotate</span></span>
-            <span id="dist-label" class="viz-status">Workers send gradients, not data; the server steps on the combined loss</span>
+            <span id="dist-label" class="viz-status">Workers send gradients, not data; the aggregator steps on the combined loss</span>
           </figcaption>
         </figure>
         <figure class="viz viz-wide">
